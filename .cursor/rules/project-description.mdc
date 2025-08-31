@@ -1,0 +1,198 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+You are Cursor. Create a production-ready repository for a Streamlit web application that converts short audio files (≤5 minutes, ≤100 MB) containing melodies into readable music scores (PDF/PNG). Target: Linux containers, CPU-only by default. Prioritize transcription accuracy over speed.
+
+# 0. Goals & Scope (MVP)
+- Input: mono or mixed tracks with **vocals** or **piano** melody.
+- Task: extract **main monophonic melody** (not full polyphony).
+- First, optional **source separation** (2-stems: vocals vs accompaniment) to isolate melody; then perform pitch tracking and rhythmic quantization.
+- Automatically detect **key** and **tempo**, with manual override available.
+- Pre-processing: denoise, loudness normalization, silence trimming.
+- Export: **MusicXML → render into PDF/PNG**. Provide audio previews (original & synthesized melody).
+- Multi-page RU UI (Streamlit): Upload → Settings → Preview/Editor → Export → History.
+- Background processing (Celery + Redis) with progress tracking.
+- Persistence: PostgreSQL; files stored on a Docker volume.
+- Logging: JSON logs. CI: pre-commit hooks (black, isort, ruff), mypy (partial), pytest, GitHub Actions. Secrets via `.env`.
+
+# 1. Repository layout
+Use this structure:
+
+.
+├── app/
+│   ├── pages/
+│   │   ├── 01_Upload.py
+│   │   ├── 02_Settings.py
+│   │   ├── 03_Preview_and_Editor.py
+│   │   ├── 04_Export.py
+│   │   └── 05_History.py
+│   ├── main.py
+│   ├── settings.py
+│   ├── deps.py
+│   ├── ui_components.py
+│   ├── audio/
+│   │   ├── io.py
+│   │   ├── preprocess.py
+│   │   ├── separation.py
+│   │   ├── f0.py
+│   │   ├── quantize.py
+│   │   ├── key_tempo.py
+│   │   ├── notation.py
+│   │   └── synthesis.py
+│   ├── tasks/
+│   │   └── celery_tasks.py
+│   ├── db/
+│   │   ├── models.py
+│   │   ├── schema.sql
+│   │   └── repository.py
+│   ├── utils/
+│   │   ├── logging.py
+│   │   └── ids.py
+│   └── __init__.py
+├── docker/
+│   ├── Dockerfile.app
+│   ├── Dockerfile.worker
+│   └── verovio_install_notes.md
+├── docker-compose.yml
+├── pyproject.toml
+├── requirements.txt
+├── .env.example
+├── .pre-commit-config.yaml
+├── mypy.ini
+├── ruff.toml
+├── Makefile
+├── README.md
+├── tests/
+│   ├── test_pipeline_smoke.py
+│   └── data/
+└── .github/workflows/
+    ├── ci.yml
+    └── docker.yml
+
+# 2. Dependencies
+Core:
+- streamlit
+- numpy, scipy, soundfile, audioread
+- librosa
+- torch (CPU build) + **torchcrepe** (for accurate F0)
+- spleeter (2-stems) for source separation
+- music21
+- python-json-logger
+- matplotlib, plotly
+- SQLAlchemy, psycopg2-binary
+- celery[redis], redis
+- pydantic
+- verovio OR MuseScore CLI (headless) for MusicXML→PDF/PNG
+
+Dev:
+- black, isort, ruff, mypy, pytest, pytest-cov, tox, pre-commit
+
+# 3. Processing pipeline
+
+audio/io.py
+- Validate file type (mp3, wav, flac, m4a, ogg), enforce max 5 min / 100 MB.
+- Load audio as mono float32 at 16 kHz or 22.05 kHz.
+
+audio/preprocess.py
+- Normalization, high-pass filter, denoise (spectral gating), silence trim.
+
+audio/separation.py
+- Strategy pattern: "none" | "spleeter".
+- If spleeter: isolate vocal stem.
+
+audio/f0.py
+- Implement both pYIN (librosa) and torchcrepe backends.
+- Default: torchcrepe (hop=10 ms). Apply median/Viterbi smoothing.
+
+audio/quantize.py
+- Estimate tempo (librosa beat_track).
+- Quantize notes to grid (default 1/16). Collapse short notes, insert rests.
+
+audio/key_tempo.py
+- Detect key via music21 Krumhansl-Schmuckler, allow manual override.
+- Default time signature: 4/4; allow manual change.
+
+audio/notation.py
+- Convert times/f0 → music21 Stream.
+- Add clef, key, time, tempo, articulations, ties, rests.
+- Export to MusicXML, then to PDF/PNG via MuseScore or Verovio.
+
+audio/synthesis.py
+- Simple sine or piano sample synthesis for preview.
+
+# 4. Streamlit UI
+- **Upload**: file_uploader, waveform, spectrogram, original audio, submit background job.
+- **Settings**: separation on/off, F0 backend, A4 reference, preprocessing toggles, quantization grid, key/time/tempo manual overrides.
+- **Preview/Editor**: display piano-roll, generated sheet (PNG/SVG), synthesized audio. Provide editable table (st.data_editor) of notes (pitch, onset, duration, lyric).
+- **Export**: download MusicXML, PDF, PNG.
+- **History**: paginated list of jobs, statuses, artifacts.
+
+# 5. Background tasks
+celery_tasks.py
+- Task `transcribe_job(job_id)` executes full pipeline.
+- Store intermediate artifacts and final MusicXML/PDF/PNG.
+- Update DB job status, progress, error messages.
+- Cleanup periodic task (delete old files, TTL=7 days).
+
+# 6. Rendering
+- Prefer MuseScore CLI (`mscore`) in headless mode.
+- Alternative: Verovio CLI (SVG/PNG, optional PDF).
+- Wrap into adapter: try MuseScore first, fallback to Verovio.
+
+# 7. Database schema
+Tables:
+- uploads (id, filename, ext, sr, duration_sec, size_bytes, path, created_at)
+- jobs (id, upload_id, params_json, status, progress, error, created_at, finished_at)
+- artifacts (id, job_id, kind, path, created_at)
+- logs (id, job_id, level, message_json, ts)
+
+# 8. Config
+settings.py: read from env: POSTGRES_DSN, REDIS_URL, STORAGE_DIR, MAX_FILE_MB=100, MAX_DURATION_SEC=300, DEFAULT_SR, RENDERER=mscore|verovio, CLEANUP_TTL_DAYS=7.
+
+# 9. Logging
+- Use python-json-logger; include correlation id (job_id).
+
+# 10. Quality
+- pre-commit with black, isort, ruff.
+- mypy (strict for audio modules).
+- pytest unit & smoke tests.
+- GitHub Actions: lint, mypy, pytest; build Docker images.
+
+# 11. Docker & Compose
+Dockerfile.app:
+- Base: python:3.11-slim
+- Install ffmpeg, libsndfile1, sox, musescore or verovio
+- Install Python deps
+- Expose Streamlit port
+
+Dockerfile.worker:
+- Same base, entrypoint Celery
+
+docker-compose.yml:
+- services: app (Streamlit), worker, beat, redis, db (Postgres)
+- mount ./data → /data
+- env_file: .env
+
+# 12. Security & retention
+- Reject >100 MB or >5 min.
+- Retain files 7 days (configurable).
+- No user accounts in MVP.
+
+# 13. Tests
+- Synthetic tone fixtures (avoid storing binaries).
+- Assert F0 error < tolerance.
+- Check MusicXML export roundtrip.
+
+# 14. README
+Include:
+- Quick start with docker-compose
+- Local dev setup
+- Known limitations (monophonic only, separation imperfect for piano)
+
+# 15. Non-functional
+- RU interface text
+- JSON logs
+- SOLID design: strategies for separation/F0, repository pattern for DB, thin UI
+- Accuracy prioritized over speed

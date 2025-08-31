@@ -1,0 +1,38 @@
+# Web/UI
+streamlit==1.37.1
+
+# Audio/DSP
+numpy==1.26.4
+scipy==1.13.1
+soundfile==0.12.1
+audioread==3.0.1
+librosa==0.10.2.post1
+matplotlib==3.9.0
+plotly==5.22.0
+
+# ML / Separation (Demucs stack)
+torch==2.3.1
+torchaudio==2.3.1
+demucs==4.0.1
+# F0
+torchcrepe==0.0.22
+
+# Notation / MusicXML
+music21==9.1.0
+
+# Infra
+pydantic==2.8.2
+SQLAlchemy==2.0.32
+psycopg2-binary==2.9.9
+celery[redis]==5.4.0
+redis==5.0.7
+python-json-logger==2.0.7
+tqdm==4.66.4
+
+# Development
+black==24.2.0
+isort==5.13.2
+ruff==0.2.1
+pytest==8.0.0
+pytest-cov==4.1.0
+pre-commit==3.6.0

@@ -1,0 +1,62 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.app
+    container_name: melody2score_app
+    env_file: .env
+    volumes:
+      - ./data:/data
+      - ./app:/app/app
+    ports:
+      - "${APP_PORT:-8501}:8501"
+    depends_on:
+      - redis
+      - db
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    container_name: melody2score_worker
+    env_file: .env
+    volumes:
+      - ./data:/data
+      - ./app:/app/app
+    depends_on:
+      - redis
+      - db
+
+  beat:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    container_name: melody2score_beat
+    env_file: .env
+    command: ["celery", "-A", "app.tasks.celery_tasks.celery_app", "beat", "-l", "INFO"]
+    volumes:
+      - ./data:/data
+      - ./app:/app/app
+    depends_on:
+      - redis
+      - db
+
+  redis:
+    image: redis:7.2
+    container_name: melody2score_redis
+    ports:
+      - "6379:6379"
+
+  db:
+    image: postgres:16
+    container_name: melody2score_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      POSTGRES_DB: ${POSTGRES_DB:-m2s}
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
