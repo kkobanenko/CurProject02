@@ -5,6 +5,7 @@ import subprocess
 from typing import List, Optional, Tuple
 import numpy as np
 from music21 import stream, note, meter, key as m21key, tempo as m21tempo, duration, clef
+from app.settings import settings
 
 logger = logging.getLogger(__name__)
 

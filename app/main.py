@@ -1,6 +1,7 @@
 import streamlit as st
 from app.utils.logging import configure_json_logging
-from app.db.repository import init_db, check_db_connection, run_migrations
+from app.db.repository import init_db, check_db_connection
+from app.db.migrations import run_migrations
 from app.db.migrations import create_logs_table
 from app.settings import settings
 
