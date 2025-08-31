@@ -57,7 +57,16 @@ def build_score(midi_pitches: List[int],
     Returns:
         music21 Score object
     """
-    if not midi_pitches or not onset_beats or not dur_beats:
+    # Convert numpy arrays to lists if needed
+    if hasattr(midi_pitches, '__len__') and not isinstance(midi_pitches, (list, tuple)):
+        midi_pitches = midi_pitches.tolist()
+    if hasattr(onset_beats, '__len__') and not isinstance(onset_beats, (list, tuple)):
+        onset_beats = onset_beats.tolist()
+    if hasattr(dur_beats, '__len__') and not isinstance(dur_beats, (list, tuple)):
+        dur_beats = dur_beats.tolist()
+    
+    # Check for empty data
+    if len(midi_pitches) == 0 or len(onset_beats) == 0 or len(dur_beats) == 0:
         logger.warning("Empty data provided for score building")
         return stream.Score()
     
@@ -73,7 +82,8 @@ def build_score(midi_pitches: List[int],
         part = stream.Part()
         
         # Add metadata
-        sc.metadata = stream.Metadata()
+        from music21 import metadata
+        sc.metadata = metadata.Metadata()
         sc.metadata.title = title
         
         # Add tempo marking
@@ -176,7 +186,7 @@ def render_to_pdf_png(musicxml_path: str,
     
     if settings.renderer == "mscore":
         # Try MuseScore
-        musescore_commands = ["mscore", "musescore3", "musescore4"]
+        musescore_commands = [settings.musescore_path, "mscore", "musescore3", "musescore4"]
         
         for cmd in musescore_commands:
             try:

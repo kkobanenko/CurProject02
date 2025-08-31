@@ -27,7 +27,15 @@ def synth_sine(midi_pitches: List[int],
     Returns:
         Synthesized audio array
     """
-    if not midi_pitches or not onset_beats or not dur_beats:
+    # Convert numpy arrays to lists if needed
+    if hasattr(midi_pitches, '__len__') and not isinstance(midi_pitches, (list, tuple)):
+        midi_pitches = midi_pitches.tolist()
+    if hasattr(onset_beats, '__len__') and not isinstance(onset_beats, (list, tuple)):
+        onset_beats = onset_beats.tolist()
+    if hasattr(dur_beats, '__len__') and not isinstance(dur_beats, (list, tuple)):
+        dur_beats = dur_beats.tolist()
+    
+    if len(midi_pitches) == 0 or len(onset_beats) == 0 or len(dur_beats) == 0:
         logger.warning("Empty data provided for synthesis")
         return np.array([], dtype=np.float32)
     
@@ -116,7 +124,15 @@ def synth_piano(midi_pitches: List[int],
     Returns:
         Synthesized audio array
     """
-    if not midi_pitches or not onset_beats or not dur_beats:
+    # Convert numpy arrays to lists if needed
+    if hasattr(midi_pitches, '__len__') and not isinstance(midi_pitches, (list, tuple)):
+        midi_pitches = midi_pitches.tolist()
+    if hasattr(onset_beats, '__len__') and not isinstance(onset_beats, (list, tuple)):
+        onset_beats = onset_beats.tolist()
+    if hasattr(dur_beats, '__len__') and not isinstance(dur_beats, (list, tuple)):
+        dur_beats = dur_beats.tolist()
+    
+    if len(midi_pitches) == 0 or len(onset_beats) == 0 or len(dur_beats) == 0:
         logger.warning("Empty data provided for piano synthesis")
         return np.array([], dtype=np.float32)
     

@@ -32,10 +32,20 @@ def estimate_tempo(y: np.ndarray, sr: int,
     try:
         tempo, beats = librosa.beat.beat_track(
             y=y, sr=sr, hop_length=hop_length,
-            start_bpm=start_bpm, std_bpm=std_bpm
+            start_bpm=start_bpm
         )
         
         logger.debug(f"Tempo estimation result: {tempo:.1f} BPM, {len(beats)} beats")
+        
+        # Ensure tempo is a scalar
+        if hasattr(tempo, '__len__'):
+            tempo = float(tempo[0]) if len(tempo) > 0 else start_bpm
+        
+        # Validate tempo
+        if tempo <= 0 or tempo > 300:
+            logger.warning(f"Invalid tempo: {tempo:.1f} BPM, using default")
+            tempo = start_bpm
+        
         return float(tempo)
         
     except Exception as e:

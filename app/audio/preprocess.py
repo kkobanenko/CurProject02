@@ -11,10 +11,15 @@ def highpass(y: np.ndarray, sr: int, cutoff_hz: float = 50.0) -> np.ndarray:
         return y
     
     logger.debug(f"Applying high-pass filter: cutoff={cutoff_hz}Hz, sr={sr}")
-    sos = librosa.iirfilter(2, cutoff_hz, btype="highpass", fs=sr, output="sos")
-    filtered = librosa.sosfilt(sos, y)
-    logger.debug(f"High-pass filter applied: input_shape={y.shape}, output_shape={filtered.shape}")
-    return filtered
+    try:
+        from scipy import signal
+        sos = signal.butter(2, cutoff_hz, btype="highpass", fs=sr, output="sos")
+        filtered = signal.sosfilt(sos, y)
+        logger.debug(f"High-pass filter applied: input_shape={y.shape}, output_shape={filtered.shape}")
+        return filtered
+    except ImportError:
+        logger.warning("scipy not available, skipping high-pass filter")
+        return y
 
 def normalize(y: np.ndarray, target_rms: float = 0.1) -> np.ndarray:
     """Normalize audio to target RMS level."""

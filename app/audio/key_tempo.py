@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 import numpy as np
 from typing import List, Tuple
-from music21 import analysis, stream, pitch, key, meter
+from music21 import analysis, stream, pitch, key, meter, note
 
 logger = logging.getLogger(__name__)
 
@@ -50,12 +50,16 @@ def _detect_key_krumhansl_schmuckler(midi_pitches: List[int]) -> str:
     pitches_to_analyze = midi_pitches[:512]
     
     for mp in pitches_to_analyze:
-        n = pitch.Pitch()
-        n.midi = mp
+        n = note.Note()
+        n.pitch = pitch.Pitch(midi=mp)
         s.append(n)
     
     k = analysis.discrete.KrumhanslSchmuckler().getSolution(s)
     key_str = str(k)
+    
+    # Extract just the key name (e.g., "A" from "A major")
+    if " " in key_str:
+        key_str = key_str.split(" ")[0]
     
     logger.debug(f"Krumhansl-Schmuckler key detection result: {key_str}")
     return key_str

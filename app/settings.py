@@ -12,7 +12,9 @@ class Settings(BaseSettings):
     default_sr: int = Field(default=22050, description="Default sample rate")
     
     # Rendering
-    renderer: str = Field(default="none", description="Renderer: mscore|verovio|none")
+    renderer: str = Field(default="mscore", description="Renderer: mscore|verovio|none")
+    musescore_path: str = Field(default="/snap/bin/musescore.mscore", description="Path to MuseScore executable")
+    verovio_path: str = Field(default="verovio", description="Path to Verovio executable")
     render_timeout_sec: int = Field(default=60, description="Render timeout in seconds")
     
     # Infrastructure
